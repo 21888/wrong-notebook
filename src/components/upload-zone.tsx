@@ -1,25 +1,37 @@
 "use client";
 
 import { useCallback, useState, useEffect } from "react";
-import { useDropzone } from "react-dropzone";
+import { FileRejection, useDropzone } from "react-dropzone";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UploadCloud, Loader2, Monitor } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { MAX_UPLOAD_FILE_SIZE_MB, MAX_UPLOAD_FILES } from "@/lib/image-utils";
+
+type CaptureControllerInstance = {
+    setFocusBehavior(behavior: 'no-focus-change' | 'focus-capturing-application'): void;
+};
+
+type DisplayMediaOptionsWithController = DisplayMediaStreamOptions & {
+    preferCurrentTab?: boolean;
+    controller?: CaptureControllerInstance;
+};
+
+type MediaTrackSettingsWithDisplaySurface = MediaTrackSettings & {
+    displaySurface?: string;
+};
 
 // 添加 CaptureController 类型声明
 declare global {
     interface Window {
         CaptureController: {
-            new(): {
-                setFocusBehavior(behavior: 'no-focus-change' | 'focus-capturing-application'): void;
-            };
+            new(): CaptureControllerInstance;
         };
     }
 }
 
 interface UploadZoneProps {
-    onImageSelect: (file: File) => void;  // 改为传递 File 对象
+    onImageSelect: (files: File[]) => void;
     isAnalyzing: boolean;
 }
 
@@ -39,21 +51,47 @@ export function UploadZone({ onImageSelect, isAnalyzing }: UploadZoneProps) {
 
     const onDrop = useCallback(
         (acceptedFiles: File[]) => {
-            const file = acceptedFiles[0];
-            if (file) {
-                // 直接传递 File 对象，让父组件处理压缩
-                onImageSelect(file);
+            if (acceptedFiles.length > 0) {
+                // 直接传递 File 对象，让父组件处理压缩或多图合并
+                onImageSelect(acceptedFiles);
             }
         },
         [onImageSelect]
     );
 
+    const onDropRejected = useCallback(
+        (fileRejections: FileRejection[]) => {
+            const hasTooManyFiles = fileRejections.some((rejection) =>
+                rejection.errors.some((error) => error.code === "too-many-files")
+            );
+            const hasTooLargeFile = fileRejections.some((rejection) =>
+                rejection.errors.some((error) => error.code === "file-too-large")
+            );
+
+            if (hasTooManyFiles) {
+                alert(t.upload.tooManyImages || `Maximum ${MAX_UPLOAD_FILES} images allowed`);
+                return;
+            }
+
+            if (hasTooLargeFile) {
+                alert(t.upload.imageTooLarge || `Each image must be ${MAX_UPLOAD_FILE_SIZE_MB}MB or smaller`);
+                return;
+            }
+
+            alert(t.upload.unsupportedImage || "Unsupported image format");
+        },
+        [t]
+    );
+
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
+        onDropRejected,
         accept: {
             "image/*": [".jpeg", ".jpg", ".png"],
         },
-        maxFiles: 1,
+        maxFiles: MAX_UPLOAD_FILES,
+        maxSize: MAX_UPLOAD_FILE_SIZE_MB * 1024 * 1024,
+        multiple: true,
         disabled: isAnalyzing,
     });
     // 检查是否支持屏幕截图
@@ -74,23 +112,20 @@ export function UploadZone({ onImageSelect, isAnalyzing }: UploadZoneProps) {
 
         try {
             // 创建 CaptureController 来控制焦点行为
-            let controller;
+            let controller: CaptureControllerInstance | undefined;
             if ('CaptureController' in window) {
                 controller = new window.CaptureController();
             }
 
             // 请求屏幕共享权限，优先当前标签页
-            const displayMediaOptions: DisplayMediaStreamOptions & {
-                preferCurrentTab?: boolean;
-                controller?: any;
-            } = {
+            const displayMediaOptions: DisplayMediaOptionsWithController = {
                 video: true,
                 audio: false,
                 preferCurrentTab: false,  // 优先显示"此标签页"选项
             };
 
             if (controller) {
-                (displayMediaOptions as any).controller = controller;
+                displayMediaOptions.controller = controller;
             }
 
             const stream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
@@ -98,7 +133,7 @@ export function UploadZone({ onImageSelect, isAnalyzing }: UploadZoneProps) {
             // 获取视频轨道并检查捕获类型
             const [videoTrack] = stream.getVideoTracks();
             const settings = videoTrack.getSettings();
-            const displaySurface = (settings as any).displaySurface;  // 'browser' 表示标签页
+            const displaySurface = (settings as MediaTrackSettingsWithDisplaySurface).displaySurface;  // 'browser' 表示标签页
 
             // 如果是标签页或窗口，设置不切换焦点
             if (controller && (displaySurface === 'browser' || displaySurface === 'window')) {
@@ -157,7 +192,7 @@ export function UploadZone({ onImageSelect, isAnalyzing }: UploadZoneProps) {
                     const file = new File([blob], `screenshot-${Date.now()}.png`, {
                         type: 'image/png'
                     });
-                    onImageSelect(file);
+                    onImageSelect([file]);
                     console.log('✅ 截图完成，当前页面未跳转');
                 } else {
                     alert('截图转换失败');

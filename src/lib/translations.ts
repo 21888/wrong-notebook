@@ -49,7 +49,7 @@ export const translations = {
         app: {
             title: "Smart Error Notebook",
             subtitle: "AI-powered analysis and intelligent review",
-            dragDrop: "Drag and drop an image here, or click to browse",
+            dragDrop: "Drag and drop images here, or click to browse",
             analyzing: "AI is analyzing...",
             compressing: "Compressing image...",
             supportedFormats: "Supports JPG, PNG, HEIC",
@@ -87,8 +87,11 @@ export const translations = {
         },
         upload: {
             // dragDrop: "Click or drag image to upload", // Moved to app
-            support: "Support JPG, PNG (Max 5MB)",
+            support: "Supports JPG, PNG (Max 5MB each, up to 10 images)",
             analyze: "Analyze with AI",
+            tooManyImages: "You can upload up to 10 images at once",
+            imageTooLarge: "Each image must be 5MB or smaller",
+            unsupportedImage: "Only JPG and PNG images are supported",
             // analyzing: "Analyzing...", // Moved to app
             screenshot: "Screenshot",
             screenshotDesc: "Capture screen content (select 'This Tab' to avoid switching)",
@@ -697,7 +700,7 @@ export const translations = {
         app: {
             title: "智能错题本",
             subtitle: "AI 驱动的题目分析与智能复习",
-            dragDrop: "拖拽图片到此处，或点击浏览",
+            dragDrop: "拖拽多张图片到此处，或点击浏览",
             analyzing: "AI 正在分析...",
             compressing: "正在压缩图片...",
             supportedFormats: "支持 JPG、PNG、HEIC 格式",
@@ -735,8 +738,11 @@ export const translations = {
         },
         upload: {
             // dragDrop: "点击或拖拽上传图片", // Moved to app
-            support: "支持 JPG, PNG (最大 5MB)",
+            support: "支持 JPG, PNG (单张最大 5MB，最多 10 张)",
             analyze: "AI 智能解析",
+            tooManyImages: "一次最多上传 10 张图片",
+            imageTooLarge: "单张图片不能超过 5MB",
+            unsupportedImage: "仅支持 JPG 和 PNG 图片",
             // analyzing: "解析中...", // Moved to app
             screenshot: "屏幕截图",
             screenshotDesc: "捕获屏幕内容（建议选择‘整个屏幕’或‘窗口’以获得最佳效果）",

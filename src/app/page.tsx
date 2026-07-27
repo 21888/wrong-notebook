@@ -12,7 +12,7 @@ import { apiClient } from "@/lib/api-client";
 import { AnalyzeResponse, Notebook, AppConfig } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { processImageFile } from "@/lib/image-utils";
+import { processImageFiles } from "@/lib/image-utils";
 import { Upload, BookOpen, Tags, LogOut, BarChart3, PenLine } from "lucide-react";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { BroadcastNotification } from "@/components/broadcast-notification";
@@ -102,35 +102,44 @@ function HomeContent() {
         };
     }, [analysisStep, safetyTimeout]);
 
-    const onImageSelect = (file: File) => {
-        const imageUrl = URL.createObjectURL(file);
-        setCroppingImage(imageUrl);
-        setIsCropperOpen(true);
+    const onImageSelect = (files: File[]) => {
+        if (files.length === 1) {
+            const imageUrl = URL.createObjectURL(files[0]);
+            setCroppingImage(imageUrl);
+            setIsCropperOpen(true);
+            return;
+        }
+
+        setCroppingImage(null);
+        setIsCropperOpen(false);
+        handleAnalyze(files);
     };
 
     const handleCropComplete = async (croppedBlob: Blob) => {
         setIsCropperOpen(false);
         // Convert Blob to File
         const file = new File([croppedBlob], "cropped-image.jpg", { type: "image/jpeg" });
-        handleAnalyze(file);
+        handleAnalyze([file]);
     };
 
-    const handleAnalyze = async (file: File) => {
+    const handleAnalyze = async (files: File[]) => {
         const startTime = Date.now();
         frontendLogger.info('[HomeAnalyze]', 'Starting analysis flow', {
             timeoutSettings: {
                 apiTimeout: aiTimeout,
                 safetyTimeout
-            }
+            },
+            fileCount: files.length
         });
 
         try {
             frontendLogger.info('[HomeAnalyze]', 'Step 1/5: Compressing image');
             setAnalysisStep('compressing');
-            const base64Image = await processImageFile(file);
+            const base64Image = await processImageFiles(files);
             setCurrentImage(base64Image);
             frontendLogger.info('[HomeAnalyze]', 'Image compressed successfully', {
-                size: base64Image.length
+                size: base64Image.length,
+                fileCount: files.length
             });
 
             frontendLogger.info('[HomeAnalyze]', 'Step 2/5: Calling API endpoint /api/analyze');
